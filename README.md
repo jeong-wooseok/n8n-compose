@@ -6,13 +6,15 @@ GCP에서 내려받은 Google OAuth JSON을 넣으면 사용자가 Client ID·Se
 ## 준비물
 
 - Docker Desktop 또는 Docker Engine + Docker Compose v2.24 이상
-- Python 3.10 이상, Git
+- Python 3.10 이상. Git은 저장소를 clone할 때만 필요하며 ZIP 다운로드로 생략할 수 있습니다.
 - 샌드박스 포함 시 최소 2 vCPU·4 GB RAM. 이미지 저장 공간과 실행 여유를 고려해 8 GB RAM 이상 권장
 - Google 연결을 쓸 경우 Google Cloud의 **웹 애플리케이션 OAuth 클라이언트 JSON**
 - AI 어시스턴트를 쓸 경우 OpenAI 호환 모델 endpoint와 API 키
 
-macOS·Windows는 Docker Desktop을 먼저 실행합니다. Windows에서는 WSL2 터미널을 권장합니다.
-Python 실행 명령이 `python`인 환경에서는 아래 `python3`를 `python`으로 바꿉니다.
+macOS·Windows는 Docker Desktop을 먼저 실행합니다. **Windows는 PowerShell에서 바로 진행합니다.**
+PowerShell 사용에는 Ubuntu 설치나 WSL Integration 설정이 필요하지 않습니다. Docker Desktop의 WSL 2 실행 기반만 준비합니다.
+Windows 처음 설치는 [Docker Desktop + PowerShell 설치 가이드](docs/WINDOWS.md)를 따라 진행하세요.
+아래 공통 예제의 `python3`는 Windows에서 `py -3`로 바꿉니다. Python 실행 명령이 `python`인 환경에서는 `python`을 사용합니다.
 
 ## 1. 내려받기
 
@@ -21,7 +23,7 @@ git clone https://github.com/jeong-wooseok/n8n-compose.git
 cd n8n-compose
 ```
 
-비공개 저장소는 해당 GitHub 계정에 접근 권한이 있어야 합니다.
+Git을 설치하지 않았다면 저장소의 **Code → Download ZIP**으로 내려받고 압축을 푼 뒤, README.md가 있는 프로젝트 폴더에서 진행합니다.
 
 ## 2. 설정 만들기
 
