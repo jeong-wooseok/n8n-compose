@@ -1,0 +1,63 @@
+name: Validate Compose
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test initialization, OAuth import, and Compose combinations
+        run: python3 -m unittest discover -s tests -v
+      - name: Compile Python sources
+        run: python3 -m compileall -q scripts tests
+
+  startup:
+    needs: contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [base, sandbox]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Initialize synthetic local configuration
+        env:
+          INSTALL_MODE: ${{ matrix.mode }}
+        run: |
+          if [ "$INSTALL_MODE" = sandbox ]; then
+            python3 scripts/setup.py --sandbox
+          else
+            python3 scripts/setup.py
+          fi
+          docker compose config --quiet
+      - name: Prepare Linux shared folder permissions
+        run: docker compose run --rm --no-deps --user 0:0 --entrypoint sh n8n -c 'chown 1000:1000 /data/shared && chmod 0750 /data/shared'
+      - name: Start services
+        run: docker compose up -d --wait --wait-timeout 600
+      - name: Verify application and search
+        run: python3 scripts/check.py
+      - name: Show service states
+        if: always()
+        run: docker compose ps -a
+      - name: Stop temporary CI services
+        if: always()
+        run: docker compose down -v

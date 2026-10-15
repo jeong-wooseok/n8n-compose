@@ -1,0 +1,6 @@
+{
+  "googleOAuth2Api": {
+    "clientId": "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com",
+    "clientSecret": "YOUR_WEB_CLIENT_SECRET"
+  }
+}
