@@ -76,4 +76,8 @@
 `N8N_AI_TIMEOUT_MAX`와 `N8N_USER_MANAGEMENT_JWT_SECRET`은 지원되는 공식 변수다.
 기본 템플릿에서는 과도한 시간 연장과 별도 JWT secret 지정을 생략하고 n8n 기본 동작을 사용한다.
 소문자 `n8n_AUTO_EDIT*`는 공식 지원 근거를 확인하지 못해 제거했다.
-추가 서비스 이미지는 2026-10-16 공개 registry에서 확인한 multi-architecture manifest digest로 고정했다.
+초기 배포(2026-10-16)에서는 추가 서비스 이미지를 multi-architecture manifest digest로 고정해 기동을 검증했다.
+2026-10-17에는 사용자가 쉽게 갱신하도록 `.env.example`에서 이미지 digest와 중복 기본값을 제거했다.
+n8n·Code 실행기는 공통 `N8N_VERSION=stable`, 샌드박스 묶음은 공통 `SANDBOX_VERSION=stable`을 기본으로 사용한다.
+PostgreSQL은 데이터 경로 호환성을 위해 17 계열을 유지한다. 기존 `.env`와 실행 중인 서비스는 이 변경만으로 바뀌지 않는다.
+새 릴리스의 실제 기동 검증은 초기 배포의 기동 기록과 구분하며, 최신 결과는 GitHub Actions에서 확인한다.

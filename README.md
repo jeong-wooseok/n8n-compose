@@ -37,6 +37,11 @@ python3 scripts/setup.py --sandbox
 다시 실행해도 기존 `.env`를 덮어쓰거나 암호화 키를 바꾸지 않습니다.
 처음에는 Google 설정이 비어 있어도 n8n을 시작할 수 있습니다.
 
+예제 설정은 자주 바꾸는 값과 자동 생성할 비밀값 22개로 구성됩니다.
+이미지 기본값과 드문 설정은 Compose에 두고, 필요할 때만 `.env`에서 재정의합니다.
+n8n과 Code 실행기는 `N8N_VERSION=stable`로 안정 릴리스를 함께 사용합니다.
+[설정 항목과 이미지 업데이트 방법](docs/CONFIGURATION.md)을 참고하세요.
+
 AI 어시스턴트까지 사용할 때는 `.env`의 다음 세 항목을 채웁니다.
 
 ```dotenv
@@ -150,6 +155,7 @@ docker compose logs --tail 100 n8n
 - [Google JSON → 사용자별 Google 로그인](docs/GOOGLE_OAUTH.md)
 - [웹 검색·샌드박스·Redis·Qdrant 사용](docs/FEATURES.md)
 - [HTTPS·백업·복구·업데이트·기존 서버 이전](docs/OPERATIONS.md)
+- [간단한 설정·이미지 버전 선택·이전 .env 전환](docs/CONFIGURATION.md)
 - [원본 구성 분석과 제거·수정 이유](docs/ANALYSIS.md)
 
 ## 배포 범위

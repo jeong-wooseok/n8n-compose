@@ -26,7 +26,7 @@ services:
 
   n8n:
     <<: *service-defaults
-    image: docker.n8n.io/n8nio/n8n:${N8N_VERSION:-2.36.9}
+    image: docker.n8n.io/n8nio/n8n:${N8N_VERSION:-stable}
     ports:
       - "${N8N_LISTEN_ADDRESS:-127.0.0.1}:${N8N_PORT:-5678}:5678"
     environment:
@@ -75,7 +75,7 @@ services:
 
   task-runners:
     <<: *service-defaults
-    image: n8nio/runners:${N8N_VERSION:-2.36.9}
+    image: n8nio/runners:${N8N_VERSION:-stable}
     environment:
       N8N_RUNNERS_TASK_BROKER_URI: http://n8n:5679
       N8N_RUNNERS_AUTH_TOKEN: ${N8N_RUNNERS_AUTH_TOKEN:?Run setup.py first}
@@ -87,7 +87,7 @@ services:
 
   searxng:
     <<: *service-defaults
-    image: ${SEARXNG_IMAGE:?Run setup.py first}
+    image: ${SEARXNG_IMAGE:-ghcr.io/searxng/searxng:latest}
     profiles: [search]
     environment:
       SEARXNG_SECRET: ${SEARXNG_SECRET:?Run setup.py first}
@@ -120,7 +120,7 @@ services:
 
   redisinsight:
     <<: *service-defaults
-    image: ${REDISINSIGHT_IMAGE:?Run setup.py first}
+    image: ${REDISINSIGHT_IMAGE:-redis/redisinsight:latest}
     profiles: [tools]
     ports:
       - "127.0.0.1:${REDISINSIGHT_PORT:-5540}:5540"
@@ -132,7 +132,7 @@ services:
 
   qdrant:
     <<: *service-defaults
-    image: ${QDRANT_IMAGE:-qdrant/qdrant:v1.19.2}
+    image: ${QDRANT_IMAGE:-qdrant/qdrant:latest}
     profiles: [vector]
     environment:
       QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?Run setup.py first}

@@ -3,10 +3,12 @@
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,14 +19,40 @@ SECRET_VALUES = {
         "SANDBOX_REGISTRATION_TOKEN", "SANDBOX_RUNNER_API_KEY",
     )
 }
+IMAGE_VARIABLES = (
+    "POSTGRES_IMAGE", "SEARXNG_IMAGE",
+    "REDIS_IMAGE", "REDISINSIGHT_IMAGE", "QDRANT_IMAGE", "SANDBOX_API_IMAGE",
+    "SANDBOX_RUNNER_IMAGE", "SANDBOX_WORKLOAD_IMAGE",
+)
+DEFAULT_IMAGES = {
+    "n8n": "docker.n8n.io/n8nio/n8n:stable",
+    "task-runners": "n8nio/runners:stable",
+    "postgres": "postgres:17-alpine",
+    "searxng": "ghcr.io/searxng/searxng:latest",
+    "redis": "redis:7.4-alpine",
+    "redisinsight": "redis/redisinsight:latest",
+    "qdrant": "qdrant/qdrant:latest",
+    "sandbox-certs": "ghcr.io/n8n-io/n8n-sandbox-service-api:stable",
+    "sandbox-api": "ghcr.io/n8n-io/n8n-sandbox-service-api:stable",
+    "sandbox-runner-1": "ghcr.io/n8n-io/n8n-sandbox-service-runner-dind:stable",
+}
+DEFAULT_WORKLOAD_IMAGE = "ghcr.io/n8n-io/n8n-sandbox-service-sandbox:stable"
 
 
-def compose_model(profiles="", sandbox=False):
-    """Render only copied public config and dummy values, never the real .env."""
+def compose_model(profiles="", sandbox=False, overrides=None):
+    """Render public config with dummy values; None removes a template value."""
+    overrides = overrides or {}
+    for key, value in overrides.items():
+        if not isinstance(key, str) or not re.fullmatch(r"[A-Z][A-Z0-9_]*", key):
+            raise ValueError("Override names must be environment variable names")
+        if value is not None and (not isinstance(value, str) or "\n" in value or "\r" in value):
+            raise ValueError("Override values must be a single line or None")
     with tempfile.TemporaryDirectory() as directory:
         target = Path(directory)
+        referenced = set()
         for name in ("docker-compose.yml", "compose.sandbox.yml"):
             shutil.copyfile(ROOT / name, target / name)
+            referenced.update(re.findall(r"\$\{([A-Z][A-Z0-9_]*)", (ROOT / name).read_text()))
         shutil.copytree(ROOT / "config", target / "config")
         (target / ".local").mkdir()
         (target / ".local" / "google-oauth.json").write_text("{}\n")
@@ -44,9 +72,16 @@ def compose_model(profiles="", sandbox=False):
             "GOOGLE_OAUTH_CLIENT_SECRET": "compose-test-google-secret",
             "N8N_INSTANCE_AI_MODEL_API_KEY": "compose-test-model-key",
         })
+        for key, value in overrides.items():
+            if value is None:
+                values.pop(key, None)
+            else:
+                values[key] = value
         (target / ".env").write_text("\n".join(f"{k}={v}" for k, v in values.items()))
-        # Avoid inheriting the operator's Compose settings or credentials.
-        env = {k: v for k, v in os.environ.items() if k not in values and not k.startswith("COMPOSE_")}
+        # Isolate variables missing from the template too, including fallback
+        # image/version selections and values intentionally removed by a test.
+        isolated = referenced | set(values) | set(overrides)
+        env = {k: v for k, v in os.environ.items() if k not in isolated and not k.startswith("COMPOSE_")}
         result = subprocess.run(
             ["docker", "compose", "--project-directory", str(target),
              "--env-file", str(target / ".env"), "config", "--format", "json"],
@@ -193,6 +228,87 @@ class ProfileContracts(unittest.TestCase):
                 self.assertNotIn("docker.sock", volume.get("target", ""))
             if name.startswith("sandbox-"):
                 self.assertFalse(service.get("ports"), name)
+
+
+class ImageVersionContracts(unittest.TestCase):
+    def defaults_only(self, **overrides):
+        values = dict.fromkeys((*IMAGE_VARIABLES, "N8N_VERSION", "SANDBOX_VERSION"))
+        values.update(overrides)
+        return compose_model(profiles="*", sandbox=True, overrides=values)
+
+    def test_new_template_does_not_require_individual_image_settings(self):
+        keys = {line.partition("=")[0] for line in (ROOT / ".env.example").read_text().splitlines()
+                if line and not line.lstrip().startswith("#") and "=" in line}
+        self.assertFalse({key for key in keys if key.endswith("_IMAGE")})
+
+    def test_defaults_resolve_every_profile_and_sandbox_without_image_variables(self):
+        services = self.defaults_only()["services"]
+        self.assertEqual(set(services), set(DEFAULT_IMAGES))
+        for name, image in DEFAULT_IMAGES.items():
+            with self.subTest(service=name):
+                self.assertEqual(services[name]["image"], image)
+        self.assertEqual(services["sandbox-runner-1"]["environment"]["SANDBOX_RUNNER_DOCKER_SANDBOX_IMAGE"],
+                         DEFAULT_WORKLOAD_IMAGE)
+
+    def test_one_n8n_version_selects_matching_main_and_runner_releases(self):
+        services = self.defaults_only(N8N_VERSION="9.8.7-contract")["services"]
+        self.assertEqual(services["n8n"]["image"], "docker.n8n.io/n8nio/n8n:9.8.7-contract")
+        self.assertEqual(services["task-runners"]["image"], "n8nio/runners:9.8.7-contract")
+
+    def test_one_sandbox_version_selects_api_cert_runner_and_workload_releases(self):
+        services = self.defaults_only(SANDBOX_VERSION="9.8.7-contract")["services"]
+        for name, repository in (
+            ("sandbox-api", "n8n-sandbox-service-api"),
+            ("sandbox-certs", "n8n-sandbox-service-api"),
+            ("sandbox-runner-1", "n8n-sandbox-service-runner-dind"),
+        ):
+            with self.subTest(service=name):
+                self.assertEqual(services[name]["image"], f"ghcr.io/n8n-io/{repository}:9.8.7-contract")
+        self.assertEqual(services["sandbox-runner-1"]["environment"]["SANDBOX_RUNNER_DOCKER_SANDBOX_IMAGE"],
+                         "ghcr.io/n8n-io/n8n-sandbox-service-sandbox:9.8.7-contract")
+
+    def test_individual_tag_and_digest_image_overrides_win_over_shared_versions(self):
+        overrides = {
+            key: f"registry.example.test/contracts/{key.lower()}:selected-tag"
+            if index % 2 == 0 else f"registry.example.test/contracts/{key.lower()}@sha256:{index:064x}"
+            for index, key in enumerate(IMAGE_VARIABLES, start=1)
+        }
+        services = self.defaults_only(N8N_VERSION="ignored-version", SANDBOX_VERSION="ignored-version",
+                                      **overrides)["services"]
+        for name, variable in (
+            ("postgres", "POSTGRES_IMAGE"), ("searxng", "SEARXNG_IMAGE"),
+            ("redis", "REDIS_IMAGE"), ("redisinsight", "REDISINSIGHT_IMAGE"),
+            ("qdrant", "QDRANT_IMAGE"), ("sandbox-certs", "SANDBOX_API_IMAGE"),
+            ("sandbox-api", "SANDBOX_API_IMAGE"), ("sandbox-runner-1", "SANDBOX_RUNNER_IMAGE"),
+        ):
+            with self.subTest(service=name):
+                self.assertEqual(services[name]["image"], overrides[variable])
+        self.assertEqual(services["sandbox-runner-1"]["environment"]["SANDBOX_RUNNER_DOCKER_SANDBOX_IMAGE"],
+                         overrides["SANDBOX_WORKLOAD_IMAGE"])
+
+    def test_ambient_compose_image_version_and_listen_settings_are_isolated(self):
+        ambient = {key: "registry.example.test/ambient:must-not-be-used" for key in IMAGE_VARIABLES}
+        ambient.update({
+            "N8N_VERSION": "ambient-version", "SANDBOX_VERSION": "ambient-version",
+            "N8N_LISTEN_ADDRESS": "0.0.0.0", "POSTGRES_PASSWORD": "ambient-password",
+            "COMPOSE_FILE": "/nonexistent-ambient-compose.yml",
+            "COMPOSE_ENV_FILES": "/nonexistent-ambient.env", "COMPOSE_PROFILES": "invalid-profile",
+        })
+        with patch.dict(os.environ, ambient):
+            services = self.defaults_only()["services"]
+        for name, image in DEFAULT_IMAGES.items():
+            with self.subTest(service=name):
+                self.assertEqual(services[name]["image"], image)
+        self.assertEqual(services["n8n"]["ports"][0]["host_ip"], "127.0.0.1")
+        self.assertEqual(services["postgres"]["environment"]["POSTGRES_PASSWORD"],
+                         SECRET_VALUES["POSTGRES_PASSWORD"])
+
+    def test_override_inputs_cannot_add_dotenv_lines(self):
+        for overrides in ({"N8N_VERSION\nOTHER": "value"}, {"N8N_VERSION": "stable\nOTHER=value"},
+                          {"N8N_VERSION": "stable\rOTHER=value"}, {"N8N_VERSION": 123}):
+            with self.subTest(overrides=overrides):
+                with self.assertRaises(ValueError):
+                    compose_model(overrides=overrides)
 
 
 if __name__ == "__main__":

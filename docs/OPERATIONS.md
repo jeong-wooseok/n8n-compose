@@ -79,11 +79,21 @@ docker compose run --rm --no-deps --user 0:0 --entrypoint sh n8n -c 'chown 1000:
 ```bash
 umask 077
 mkdir -p backups
+docker compose exec -T n8n n8n --version > backups/n8n-version.txt
+docker compose ps -a -q | xargs docker inspect --format '{{.Name}} {{.Config.Image}} {{.Image}}' > backups/container-images.txt
+docker compose images -q | sort -u | xargs docker image inspect --format '{{.Id}} {{json .RepoDigests}}' > backups/image-digests.txt
 docker compose stop n8n task-runners
 docker compose exec -T postgres sh -c 'pg_dump -Fc -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > backups/postgres.dump
 docker compose run --rm --no-deps --entrypoint tar n8n -czf - -C /home/node .n8n > backups/n8n-data.tar.gz
 tar -czf backups/local-config.tar.gz .env .local/google-oauth.json data/shared
 docker compose up -d --wait --wait-timeout 600
+```
+
+이미지 기록에는 현재 n8n 버전, 서비스별 이미지 참조·ID·digest를 저장합니다. 전체 컨테이너 설정이나 비밀번호는 출력하지 않습니다.
+샌드박스를 사용해 작업 이미지까지 내려받은 설치는 내부 이미지 정보도 함께 보관합니다.
+
+```bash
+docker compose exec -T sandbox-runner-1 sh -c 'docker image inspect "$SANDBOX_RUNNER_DOCKER_SANDBOX_IMAGE" --format "{{.Id}} {{json .RepoDigests}}"' > backups/sandbox-image-digests.txt
 ```
 
 각 명령의 성공과 백업 파일 크기를 확인한 뒤 서버 밖의 안전한 저장소에 복제합니다.
@@ -97,7 +107,9 @@ docker compose up -d --wait --wait-timeout 600
 복구 대상이 **새 설치 또는 복구용 인스턴스**인지 먼저 확인합니다.
 기존 운영 DB에 아래 명령을 실행하면 백업 시점으로 되돌아갑니다.
 먼저 안전하게 보관한 `.env`, `.local/google-oauth.json`, 공유 파일을 해당 위치에 복원합니다.
-원래 사용한 `N8N_VERSION`, 이미지 digest와 `N8N_ENCRYPTION_KEY`를 유지합니다.
+원래 사용한 이미지 릴리스와 `N8N_ENCRYPTION_KEY`를 유지합니다.
+`stable`/`latest`는 시간이 지나면 다른 이미지를 가리킬 수 있으므로 복구용 백업에는 당시의 버전 또는 digest도 기록합니다.
+`backups/n8n-version.txt`의 버전으로 `N8N_VERSION`을 지정하고, 필요한 부가 이미지는 기록한 digest를 해당 `*_IMAGE`에 지정한 후 복구합니다.
 
 ```bash
 docker compose stop n8n task-runners
@@ -114,18 +126,28 @@ python3 scripts/check.py
 ## 업데이트
 
 1. 위 절차로 DB·n8n volume·설정을 백업합니다.
-2. 릴리스 노트와 호환성을 확인한 뒤 `.env`의 `N8N_VERSION`을 변경합니다. 본체와 task runner가 같은 값을 사용합니다.
-3. 부가 서비스 업데이트는 각 `*_IMAGE`에 새 태그 또는 확인한 digest를 지정합니다.
-4. 아래 명령으로 적용하고 실제 대표 워크플로를 실행합니다.
+2. 릴리스 노트와 호환성을 확인합니다. 기본 `N8N_VERSION=stable`은 n8n 본체와 task runner를 안정 릴리스 채널로 함께 업데이트합니다. 특정 버전을 지정했다면 원하는 릴리스로 변경합니다.
+3. 이전 템플릿의 `*_IMAGE` digest가 `.env`에 남아 있다면 [기존 설치 전환 방법](CONFIGURATION.md#이전-템플릿으로-이미-설치했다면)을 먼저 확인합니다. 파일을 다시 생성하거나 비밀번호를 바꾸지 않습니다.
+4. 아래 명령으로 새 이미지를 받아 적용합니다. Windows도 같은 Docker 명령을 사용합니다.
 
 ```bash
 docker compose pull
 docker compose up -d --wait --wait-timeout 600
-python3 scripts/check.py
 ```
 
-이 템플릿은 부가 이미지를 digest로 고정하므로 `pull`만으로 다른 버전으로 바뀌지 않습니다.
-이미지 digest 확인에는 `docker buildx imagetools inspect IMAGE:TAG`를 사용할 수 있습니다.
+샌드박스를 사용한다면 실행기 내부에 저장된 작업 이미지도 갱신합니다.
+위 `up --wait`는 실행기 내부 Docker의 준비 상태까지 기다립니다.
+
+```bash
+docker compose exec sandbox-runner-1 sh -c 'docker pull $SANDBOX_RUNNER_DOCKER_SANDBOX_IMAGE'
+```
+
+일반 `docker compose pull`은 실행기 내부 이미지를 받지 않습니다. 샌드박스가 없는 설치에서는 이 명령을 생략합니다.
+갱신한 작업 이미지는 새 샌드박스부터 사용하며, 이미 실행 중인 샌드박스는 기존 이미지로 동작합니다.
+마지막으로 Windows는 `py -3 scripts/check.py`, Mac/Linux는 `python3 scripts/check.py`를 실행하고 대표 워크플로와 Google 연결도 확인합니다. 샌드박스 사용자는 새 샌드박스를 만들어 실행도 확인합니다.
+
+기본 이미지는 `stable`, `latest` 또는 메이저 계열 태그를 사용합니다. `pull`은 새 이미지를 받고 `up`은 변경된 컨테이너를 교체합니다.
+서비스별 기본값과 정확한 버전/digest 재정의는 [설정 가이드](CONFIGURATION.md#이미지-기본값과-업데이트)에 있습니다.
 PostgreSQL 메이저 버전은 데이터 디렉터리를 공유해 단순 변경하지 않습니다. 별도 DB 이전이 필요합니다.
 n8n 업데이트 후 DB migration이 실행되었다면 이미지 버전만 낮추는 rollback은 보장되지 않습니다.
 필요하면 이전 이미지와 **업데이트 전 DB 백업을 함께** 복원합니다.
