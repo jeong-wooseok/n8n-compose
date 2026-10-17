@@ -20,7 +20,7 @@ services:
         condition: service_healthy
 
   sandbox-certs:
-    image: ${SANDBOX_API_IMAGE:-ghcr.io/n8n-io/n8n-sandbox-service-api:${SANDBOX_VERSION:-stable}}
+    image: ${SANDBOX_API_IMAGE:-ghcr.io/n8n-io/n8n-sandbox-service-api:${SANDBOX_VERSION:-latest}}
     user: "0:0"
     entrypoint: [sh, -c]
     command:
@@ -34,7 +34,7 @@ services:
       - sandbox_tls:/tls
 
   sandbox-api:
-    image: ${SANDBOX_API_IMAGE:-ghcr.io/n8n-io/n8n-sandbox-service-api:${SANDBOX_VERSION:-stable}}
+    image: ${SANDBOX_API_IMAGE:-ghcr.io/n8n-io/n8n-sandbox-service-api:${SANDBOX_VERSION:-latest}}
     restart: unless-stopped
     depends_on:
       sandbox-certs:
@@ -60,7 +60,7 @@ services:
       start_period: 20s
 
   sandbox-runner-1:
-    image: ${SANDBOX_RUNNER_IMAGE:-ghcr.io/n8n-io/n8n-sandbox-service-runner-dind:${SANDBOX_VERSION:-stable}}
+    image: ${SANDBOX_RUNNER_IMAGE:-ghcr.io/n8n-io/n8n-sandbox-service-runner-dind:${SANDBOX_VERSION:-latest}}
     restart: unless-stopped
     privileged: true
     depends_on:
@@ -74,7 +74,7 @@ services:
       SANDBOX_RUNNER_CONTROL_GRPC_LISTEN_ADDR: ":9091"
       SANDBOX_RUNNER_CONTROL_GRPC_ADVERTISE_ADDR: sandbox-runner-1:9091
       SANDBOX_RUNNER_ID: runner-1
-      SANDBOX_RUNNER_DOCKER_SANDBOX_IMAGE: ${SANDBOX_WORKLOAD_IMAGE:-ghcr.io/n8n-io/n8n-sandbox-service-sandbox:${SANDBOX_VERSION:-stable}}
+      SANDBOX_RUNNER_DOCKER_SANDBOX_IMAGE: ${SANDBOX_WORKLOAD_IMAGE:-ghcr.io/n8n-io/n8n-sandbox-service-sandbox:${SANDBOX_VERSION:-latest}}
       SANDBOX_RUNNER_REGISTRATION_GRPC_CA_FILE: /tls/runner/ca.crt
       SANDBOX_RUNNER_REGISTRATION_GRPC_CERT_FILE: /tls/runner/grpc-client.crt
       SANDBOX_RUNNER_REGISTRATION_GRPC_KEY_FILE: /tls/runner/grpc-client.key

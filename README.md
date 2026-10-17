@@ -39,7 +39,8 @@ python3 scripts/setup.py --sandbox
 
 예제 설정은 자주 바꾸는 값과 자동 생성할 비밀값 22개로 구성됩니다.
 이미지 기본값과 드문 설정은 Compose에 두고, 필요할 때만 `.env`에서 재정의합니다.
-n8n과 Code 실행기는 `N8N_VERSION=stable`로 안정 릴리스를 함께 사용합니다.
+n8n과 Code 실행기는 `N8N_VERSION=latest`, 샌드박스 이미지는 `latest`를 기본으로 사용합니다.
+업데이트가 필요할 때 `docker compose pull` 후 `docker compose up -d`로 적용합니다.
 [설정 항목과 이미지 업데이트 방법](docs/CONFIGURATION.md)을 참고하세요.
 
 AI 어시스턴트까지 사용할 때는 `.env`의 다음 세 항목을 채웁니다.

@@ -25,18 +25,18 @@ IMAGE_VARIABLES = (
     "SANDBOX_RUNNER_IMAGE", "SANDBOX_WORKLOAD_IMAGE",
 )
 DEFAULT_IMAGES = {
-    "n8n": "docker.n8n.io/n8nio/n8n:stable",
-    "task-runners": "n8nio/runners:stable",
+    "n8n": "docker.n8n.io/n8nio/n8n:latest",
+    "task-runners": "n8nio/runners:latest",
     "postgres": "postgres:17-alpine",
     "searxng": "ghcr.io/searxng/searxng:latest",
     "redis": "redis:7.4-alpine",
     "redisinsight": "redis/redisinsight:latest",
     "qdrant": "qdrant/qdrant:latest",
-    "sandbox-certs": "ghcr.io/n8n-io/n8n-sandbox-service-api:stable",
-    "sandbox-api": "ghcr.io/n8n-io/n8n-sandbox-service-api:stable",
-    "sandbox-runner-1": "ghcr.io/n8n-io/n8n-sandbox-service-runner-dind:stable",
+    "sandbox-certs": "ghcr.io/n8n-io/n8n-sandbox-service-api:latest",
+    "sandbox-api": "ghcr.io/n8n-io/n8n-sandbox-service-api:latest",
+    "sandbox-runner-1": "ghcr.io/n8n-io/n8n-sandbox-service-runner-dind:latest",
 }
-DEFAULT_WORKLOAD_IMAGE = "ghcr.io/n8n-io/n8n-sandbox-service-sandbox:stable"
+DEFAULT_WORKLOAD_IMAGE = "ghcr.io/n8n-io/n8n-sandbox-service-sandbox:latest"
 
 
 def compose_model(profiles="", sandbox=False, overrides=None):
@@ -241,7 +241,13 @@ class ImageVersionContracts(unittest.TestCase):
                 if line and not line.lstrip().startswith("#") and "=" in line}
         self.assertFalse({key for key in keys if key.endswith("_IMAGE")})
 
-    def test_defaults_resolve_every_profile_and_sandbox_without_image_variables(self):
+    def test_new_template_tracks_latest_n8n_and_runner_releases(self):
+        services = compose_model()["services"]
+        for name in ("n8n", "task-runners"):
+            with self.subTest(service=name):
+                self.assertEqual(services[name]["image"], DEFAULT_IMAGES[name])
+
+    def test_latest_defaults_resolve_every_profile_and_sandbox_without_image_variables(self):
         services = self.defaults_only()["services"]
         self.assertEqual(set(services), set(DEFAULT_IMAGES))
         for name, image in DEFAULT_IMAGES.items():

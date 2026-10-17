@@ -26,7 +26,7 @@ services:
 
   n8n:
     <<: *service-defaults
-    image: docker.n8n.io/n8nio/n8n:${N8N_VERSION:-stable}
+    image: docker.n8n.io/n8nio/n8n:${N8N_VERSION:-latest}
     ports:
       - "${N8N_LISTEN_ADDRESS:-127.0.0.1}:${N8N_PORT:-5678}:5678"
     environment:
@@ -75,7 +75,7 @@ services:
 
   task-runners:
     <<: *service-defaults
-    image: n8nio/runners:${N8N_VERSION:-stable}
+    image: n8nio/runners:${N8N_VERSION:-latest}
     environment:
       N8N_RUNNERS_TASK_BROKER_URI: http://n8n:5679
       N8N_RUNNERS_AUTH_TOKEN: ${N8N_RUNNERS_AUTH_TOKEN:?Run setup.py first}

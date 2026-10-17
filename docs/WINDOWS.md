@@ -137,6 +137,16 @@ docker compose up -d
 docker compose stop
 ```
 
+업데이트가 필요할 때는 프로젝트 폴더에서 다음 두 줄을 실행합니다.
+기본 이미지 태그는 `latest`이며, 새 이미지를 받은 뒤 실행 중인 컨테이너에 적용합니다.
+
+```powershell
+docker compose pull
+docker compose up -d
+```
+
+샌드박스 내부 작업 이미지도 갱신하려면 [업데이트 안내](OPERATIONS.md#업데이트)의 추가 명령을 실행합니다.
+
 설정은 `notepad .env`로 열어 **기존 항목의 값**을 수정하고 Ctrl+S로 저장합니다. `.env.txt`로 저장하지 않습니다.
 `.env`와 `.local`의 JSON은 비공개로 보관합니다.
 오류·백업·복구는 [운영 가이드](OPERATIONS.md)를 참고합니다. `docker compose down -v`는 데이터를 삭제하므로 재시도 명령으로 사용하지 않습니다.

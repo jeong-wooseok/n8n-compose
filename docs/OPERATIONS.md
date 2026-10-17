@@ -126,7 +126,7 @@ python3 scripts/check.py
 ## 업데이트
 
 1. 위 절차로 DB·n8n volume·설정을 백업합니다.
-2. 릴리스 노트와 호환성을 확인합니다. 기본 `N8N_VERSION=stable`은 n8n 본체와 task runner를 안정 릴리스 채널로 함께 업데이트합니다. 특정 버전을 지정했다면 원하는 릴리스로 변경합니다.
+2. 릴리스 노트와 호환성을 확인합니다. 기본 `N8N_VERSION=latest`는 n8n 본체와 task runner에 같은 최신 태그를 사용합니다. 샌드박스 이미지의 기본 태그도 `latest`입니다. 특정 버전을 지정했다면 원하는 릴리스로 변경합니다.
 3. 이전 템플릿의 `*_IMAGE` digest가 `.env`에 남아 있다면 [기존 설치 전환 방법](CONFIGURATION.md#이전-템플릿으로-이미-설치했다면)을 먼저 확인합니다. 파일을 다시 생성하거나 비밀번호를 바꾸지 않습니다.
 4. 아래 명령으로 새 이미지를 받아 적용합니다. Windows도 같은 Docker 명령을 사용합니다.
 
@@ -146,7 +146,7 @@ docker compose exec sandbox-runner-1 sh -c 'docker pull $SANDBOX_RUNNER_DOCKER_S
 갱신한 작업 이미지는 새 샌드박스부터 사용하며, 이미 실행 중인 샌드박스는 기존 이미지로 동작합니다.
 마지막으로 Windows는 `py -3 scripts/check.py`, Mac/Linux는 `python3 scripts/check.py`를 실행하고 대표 워크플로와 Google 연결도 확인합니다. 샌드박스 사용자는 새 샌드박스를 만들어 실행도 확인합니다.
 
-기본 이미지는 `stable`, `latest` 또는 메이저 계열 태그를 사용합니다. `pull`은 새 이미지를 받고 `up`은 변경된 컨테이너를 교체합니다.
+기본 이미지는 `latest` 또는 메이저 계열 태그를 사용합니다. 필요한 시점에 `pull`로 새 이미지를 받고 `up`으로 변경된 컨테이너를 교체합니다.
 서비스별 기본값과 정확한 버전/digest 재정의는 [설정 가이드](CONFIGURATION.md#이미지-기본값과-업데이트)에 있습니다.
 PostgreSQL 메이저 버전은 데이터 디렉터리를 공유해 단순 변경하지 않습니다. 별도 DB 이전이 필요합니다.
 n8n 업데이트 후 DB migration이 실행되었다면 이미지 버전만 낮추는 rollback은 보장되지 않습니다.

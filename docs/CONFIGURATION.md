@@ -8,7 +8,7 @@
 
 | 항목 | 기본값과 쓰임 |
 | --- | --- |
-| `N8N_VERSION` | `stable`. n8n과 Code 실행기가 같은 릴리스 채널을 사용 |
+| `N8N_VERSION` | `latest`. n8n과 Code 실행기에 같은 태그를 사용 |
 | `GENERIC_TIMEZONE` | `Asia/Seoul` |
 | `N8N_PORT` | `5678`. 바꾸면 아래 두 URL과 Google Redirect URI도 수정 |
 | `N8N_EDITOR_BASE_URL` | `http://localhost:5678/` |
@@ -25,20 +25,26 @@
 
 | 서비스 | 기본 이미지 | 필요할 때 추가하는 재정의 변수 |
 | --- | --- | --- |
-| n8n | `docker.n8n.io/n8nio/n8n:stable` | `N8N_VERSION` |
-| Code 실행기 | `n8nio/runners:stable` | 같은 `N8N_VERSION` |
+| n8n | `docker.n8n.io/n8nio/n8n:latest` | `N8N_VERSION` |
+| Code 실행기 | `n8nio/runners:latest` | 같은 `N8N_VERSION` |
 | PostgreSQL | `postgres:17-alpine` | `POSTGRES_IMAGE` |
 | 웹 검색 | `ghcr.io/searxng/searxng:latest` | `SEARXNG_IMAGE` |
 | Redis | `redis:7.4-alpine` | `REDIS_IMAGE` |
 | RedisInsight | `redis/redisinsight:latest` | `REDISINSIGHT_IMAGE` |
 | Qdrant | `qdrant/qdrant:latest` | `QDRANT_IMAGE` |
-| 샌드박스 API | `ghcr.io/n8n-io/n8n-sandbox-service-api:stable` | `SANDBOX_VERSION` 또는 `SANDBOX_API_IMAGE` |
-| 샌드박스 실행기 | `ghcr.io/n8n-io/n8n-sandbox-service-runner-dind:stable` | `SANDBOX_VERSION` 또는 `SANDBOX_RUNNER_IMAGE` |
-| 샌드박스 작업 이미지 | `ghcr.io/n8n-io/n8n-sandbox-service-sandbox:stable` | `SANDBOX_VERSION` 또는 `SANDBOX_WORKLOAD_IMAGE` |
+| 샌드박스 API | `ghcr.io/n8n-io/n8n-sandbox-service-api:latest` | `SANDBOX_VERSION` 또는 `SANDBOX_API_IMAGE` |
+| 샌드박스 실행기 | `ghcr.io/n8n-io/n8n-sandbox-service-runner-dind:latest` | `SANDBOX_VERSION` 또는 `SANDBOX_RUNNER_IMAGE` |
+| 샌드박스 작업 이미지 | `ghcr.io/n8n-io/n8n-sandbox-service-sandbox:latest` | `SANDBOX_VERSION` 또는 `SANDBOX_WORKLOAD_IMAGE` |
 
-`stable`과 `latest`는 게시자가 새 이미지로 갱신하는 태그입니다. 실행 중인 컨테이너가 자동 업데이트되는 것은 아닙니다.
-백업과 릴리스 노트 확인 후 `docker compose pull`과 `docker compose up -d`로 적용합니다.
-n8n의 `stable`은 안정 릴리스 채널이며, 본체와 실행기는 같은 `N8N_VERSION`으로 함께 업데이트합니다.
+`latest`는 게시자가 새 이미지로 갱신하는 태그입니다. 필요한 시점에 다음 명령으로 이미지를 받고 적용합니다.
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+별도 자동 업데이트 프로그램이나 강제 다운로드 정책은 추가하지 않습니다.
+본체와 Code 실행기는 같은 `N8N_VERSION`으로 함께 업데이트합니다.
 PostgreSQL은 기존 데이터 경로를 유지하기 위해 17 계열로 제한하고 그 안에서 갱신합니다. 메이저 변경은 별도 DB 이전이 필요합니다.
 
 샌드박스의 작업 이미지는 실행기 **내부 Docker**에 저장됩니다.
@@ -62,7 +68,7 @@ SANDBOX_VERSION=1.9.0
 ```
 
 본체와 Code 실행기에는 첫 번째 값, 샌드박스 API·실행기·작업 이미지에는 두 번째 값이 함께 적용됩니다.
-그룹의 채널을 다시 따르려면 `N8N_VERSION=stable`로 바꾸고 `SANDBOX_VERSION`을 지우거나 `stable`로 바꿉니다.
+최신 태그를 다시 사용하려면 `N8N_VERSION=latest`로 바꾸고 `SANDBOX_VERSION`을 지우거나 `latest`로 바꿉니다.
 개별 `*_IMAGE`를 직접 지정했다면 그 값이 그룹의 기본값보다 우선합니다.
 
 운영 환경에서 정확히 같은 이미지를 재현해야 한다면 개별 `*_IMAGE`에 `이미지:태그@sha256:...`를 지정할 수 있습니다.
@@ -75,7 +81,7 @@ GitHub의 `.env.example` 변경은 내 PC의 `.env`를 바꾸지 않습니다.
 
 1. [백업 절차](OPERATIONS.md#백업)로 데이터와 설정을 보관합니다.
 2. PowerShell은 `notepad .env`, Mac은 `open -e .env`로 엽니다.
-3. `N8N_VERSION=stable`로 바꿉니다.
+3. `N8N_VERSION=latest`로 바꿉니다. `SANDBOX_VERSION`도 지정되어 있다면 지우거나 `latest`로 바꿉니다.
 4. 이전 예제에서 복사한 다음 이미지 항목을 삭제하면 새 Compose 기본값을 사용합니다. 직접 선택한 이미지가 있다면 그 값을 유지할지 먼저 판단합니다.
 
 ```text
